@@ -10,9 +10,10 @@ import {Ionicons} from '@expo/vector-icons';
 import { useDispatch, useSelector } from 'react-redux';
 import {sendWord, shuffleAction, setWordAction, dropWordAction} from '../store/action/game';
 import { RootState } from 'App';
-import { GameState } from 'store/types';
+import { GameState, SessionState } from '../store/types';
 import { StackScreenProps } from '@react-navigation/stack';
 import ContainerStyle from '../constants/ContainerStyle';
+import { socket } from '../socket';
 
 function pad(val: number) {
     var valString = val + "";
@@ -33,7 +34,7 @@ export interface GameScreenProps {
 
 const GameScreen: React.FC<StackScreenProps<GameScreenProps>> = props => {
     props.navigation.setOptions({
-
+        title: "Word Battle"
     });
     
 
@@ -58,62 +59,61 @@ const GameScreen: React.FC<StackScreenProps<GameScreenProps>> = props => {
     const [notCorrectText, setNotCorrectText] = useState('');
     
     const dispatch = useDispatch();
+    const gameState = useSelector<RootState>(state => state.game) as GameState;
+    const session = useSelector<RootState>(state => state.session) as SessionState;
     
-    const gameState = useSelector<RootState>(state => state.game);
-
-    // socket.on('message',(text)=>{
-    //     console.log(text);
-    // });
+    const timesCalled = useRef(0)
 
     useEffect(() => {
-        (async() => {
-            try{
-                setIsLoading(true);
-                await dispatch(await sendWord());
-                setIsLoading(false);
-            } catch (err) {
-                setIsError(true)
-                if(!isAlertVisible) {
-                    setIsAlertVisible(true);
-                    Alert.alert('Network Error', err.message? err.message : err, [
-                        {onPress: () =>loadWord(), text: 'Retry'}
-                    ])
-                }
-            }
-        })();
-    }, []);
 
-    const loadWord = useCallback(async () => {
+        if(session.canGenerateWord) {
+            socket.emit('generateWord', {roomId: session.roomId, userId: session.userId});
+        }
+
+        socket.on('word', async (data: any) => {
+            
+            await dispatch(await sendWord(data));
+        });
+
+        return () => {
+            if(session.canGenerateWord) { 
+                socket.removeListener('word')
+            }
+        }
+    }, [session]);
+
+    const submitWord = useCallback(async () => {
         setIsAlertVisible(false)
-        console.log("CALLED");
         setIsError(false)
         setIsLoading(true);
         setIsCorrect(true);
         setIsAlertVisible(false);
+        console.log('submitWord')
         try{
-            await dispatch(await sendWord());
+            socket.emit('generateWord', {roomId: session.roomId, userId: session.userId});
+
         } catch (err) {
             setIsError(true)
             if(!isAlertVisible) {
                 setIsAlertVisible(true);
                 Alert.alert('Network Error', err.message? err.message.split[0] : err, [
-                    {onPress: () =>loadWord(), text: 'Retry'}
+                    {onPress: () =>submitWord(), text: 'Retry'}
                 ])
             }
         } finally {
             setIsLoading(false);
         }
-    }, [gameState, isCorrect, isLoading, isAlertVisible, isError]);
+    }, [isAlertVisible, session]);
 
     const verifyWord = useCallback(async () => { 
             if(word === fromArrayToString(currentWord)) { 
-                loadWord()
+                submitWord()
             } else {
                 Vibration.vibrate(1000);
                 setIsCorrect(false);
                 
             }
-    }, [word, currentWord, loadWord]);
+    }, [word, currentWord, submitWord]);
 
     useEffect(() => {
         if(!isCorrect) {
@@ -129,7 +129,8 @@ const GameScreen: React.FC<StackScreenProps<GameScreenProps>> = props => {
         setCurrentWord(allWords.fillingLetter);
         setSuggestedLetters(allWords.scrambledWord);
         setWord(allWords.word)
-        console.log(allWords.word, "server Words")
+        console.log(allWords.word, "server Words", timesCalled.current  + Platform.OS)
+        timesCalled.current = +1;
     }, [gameState])
 
 
@@ -177,7 +178,14 @@ const GameScreen: React.FC<StackScreenProps<GameScreenProps>> = props => {
         </> :
         !isError? 
         <>
-            <Text style={styles.title}>WORD BATTLE</Text>
+            <View style={{flexDirection: 'row', width: '100%'}}>
+                <View style={{flex: 1}}>
+                    <Text>You: <Text>20</Text></Text>
+                </View>
+                <View>
+                    <Text>Opponent: <Text>20</Text></Text>
+                </View>
+            </View>
 
             {/* TIME CARD */}
             <View style={styles.timeContainer}>

@@ -7,6 +7,7 @@ const DefaultOption: StackNavigationOptions =
         backgroundColor: Colors.dark,
         shadowOffset: { height: 0, width: 0 },
         elevation: 0
-    }
+    },
+    headerTintColor: Colors.primary
 }
 export default DefaultOption; 

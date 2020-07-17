@@ -1,17 +1,17 @@
 import { GENERATE_SESSION, JOIN_SESSION, AppThunk, SessionActions } from '../types';
 
-const _generateSession = (): SessionActions => {
-    return {type: GENERATE_SESSION};
+const _generateSession = (roomId: string, canGenerateWord: boolean, userId: string): SessionActions => {
+    return {type: GENERATE_SESSION, payload: {canGenerateWord, roomId, userId}};
 };
 
-export const generateSession = (): AppThunk<void>   => {
+export const generateSession = (roomId: string, canGenerateWord: boolean, userId: string): AppThunk<void>   => {
      return async (dispatch, actionState) => {
-        dispatch(_generateSession());
+        dispatch(_generateSession(roomId, canGenerateWord, userId));
     }
 };
 
 const _joinSession = (): SessionActions => {
-    return {type: JOIN_SESSION};
+    return {type: JOIN_SESSION, payload: null};
 };
 
 export const joinSession = (): AppThunk<void> => {

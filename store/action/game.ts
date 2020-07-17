@@ -1,4 +1,3 @@
-import { Dispatch, Store } from 'redux';
 import { SEND_WORD, AppThunk, GameActions, SHUFFLE_GAME, SET_WORD, DROP_WORD, GameState } from '../types';
 
 const _sendWord = (words: GameState): GameActions => {   
@@ -8,22 +7,9 @@ const _sendWord = (words: GameState): GameActions => {
     }
 }
 
-export const sendWord =  ():AppThunk<void> => {
+export const sendWord =  (data: any):AppThunk<void> => {
     return async (dispatch, state) => {
         try {
-
-            const response = await fetch('http://10.152.2.77:3000', {
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-            } );
-
-            const data = await response.json();
-            console.log(data, 'Server Response')
-            if(!response.ok) {
-                console.log(response.ok, 'Server Response')
-                throw new Error(data.message);
-            }
             const tempArray: boolean[] = [];
             data.fillingLetter.forEach((letter: string, index: number) => {
                 if(letter.length > 0) {
