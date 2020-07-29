@@ -7,14 +7,20 @@ export const SEND_WORD = 'SEND_WORD';
 export const SHUFFLE_GAME = 'SHUFFLE_GAME';
 export const SET_WORD = 'SET_WORD';
 export const DROP_WORD = 'DROP_WORD';
+export const RESET_WORD = 'RESET_WORD'
+
 
 export const JOIN_SESSION = 'JOIN_SESSION';
 export const GENERATE_SESSION = 'GENERATE_SESSION';
 export const CONNECTED_TO_SERVER = 'CONNECTED_TO_SERVER';
 export const DISCONNECTED_TO_SERVER = 'DISCONNECTED_TO_SERVER';
+export const RESET_SESSION = 'RESET_SESSION'
 
 export const UPDATE_SCORE = 'UPDATE_SCORE';
 export const STORE_USER_ACTION = 'STORE_USER_SCORE';
+export const RESET_USER = 'RESET_USER'
+
+/* GAME WORD */
 
   interface SendWordAction {
     type: typeof SEND_WORD,
@@ -39,17 +45,23 @@ export const STORE_USER_ACTION = 'STORE_USER_SCORE';
     letterToDropIndex: number
   }
 
-export type GameActions = SendWordAction | ShuffleWordAction | SetWordAction | DropWordAction;
+  interface ResetWordAction {
+    type: typeof RESET_WORD
+  }
 
-/* GAME SESSION */
+export type GameActions = SendWordAction | ShuffleWordAction | SetWordAction | DropWordAction | ResetWordAction;
 
 export interface GameState {
   word: string;
   scrambledWord: string[];
   fillingLetter: string[];
   canSetSpot: boolean[];
+  gameLength: number;
+  played: number
 }
 
+
+/* GAME SESSION */
 interface JoinSessionAction {
   type: typeof JOIN_SESSION;
   payload: any
@@ -73,7 +85,10 @@ interface DisConnectedToServerAction {
   type: typeof DISCONNECTED_TO_SERVER;
 }
 
-export type SessionActions = JoinSessionAction | GenerateSessionAction | ConnectedToServerAction | DisConnectedToServerAction;
+interface ResetSessionAction {
+  type: typeof RESET_SESSION
+}
+export type SessionActions = JoinSessionAction | GenerateSessionAction | ConnectedToServerAction | DisConnectedToServerAction | ResetSessionAction
 
 export interface SessionState {
   inSession: boolean,
@@ -82,7 +97,8 @@ export interface SessionState {
   canGenerateWord: boolean,
   isConnectedToServer: boolean
 }
-//  SCORES
+
+/* GAME USER And SCORE */
 interface UpdateScoreAction {
   type: typeof UPDATE_SCORE;
   payload: GameScore
@@ -95,6 +111,12 @@ interface StoreUserAction {
     gameScores: GameScore;
   }
 }
+
+interface ResetUserAction {
+  type: typeof RESET_USER
+}
+
+
 export interface UserState{
  [userId: string]: {
    score: string;
@@ -102,7 +124,7 @@ export interface UserState{
  }
 }
 
-export type UserActions = UpdateScoreAction | StoreUserAction;
+export type UserActions = UpdateScoreAction | StoreUserAction | ResetUserAction;
 
 export type AppThunk<ReturnType = void> = ThunkAction<
   ReturnType,

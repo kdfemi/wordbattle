@@ -5,9 +5,6 @@ import ContainerStyle from '../constants/ContainerStyle';
 import Colors from '../constants/Colors';
 import Button from '../components/Button';
 import AuthContext from '../AuthContext';
-import { useDispatch, useSelector } from 'react-redux';
-import { RootState } from '../App';
-import { CreateGameBody } from '../constants/types';
 import { StackNavigationProp } from '@react-navigation/stack';
 
 export interface GameWelcomeScreenProps   {

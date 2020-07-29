@@ -13,17 +13,17 @@ import { RoomDetails, JoinGameBody, GameScore, UserNames } from '../constants/ty
 
 import AuthContext from '../AuthContext';
 import { RootState } from '../App';
-import {socket} from '../socket';
 import * as sessionAction from '../store/action/session';
 import { StackNavigationProp } from '@react-navigation/stack';
 import ActiveStyle from '../constants/ActiveStyle';
+import { storeUser } from '../store/action/user';
 
 export interface JoinGameScreenProps {
     navigation: StackNavigationProp<any, 'JoinGameScreen'>
 };
 
 const JoinGameScreen: React.FC<JoinGameScreenProps> = props => {
-    const {setIsInSession:setSession, isConnectedToServer }= React.useContext(AuthContext);
+    const {setIsInSession:setSession, isConnectedToServer, socket }= React.useContext(AuthContext);
 
     const  [username, setUsername] = useState<string>('');
     const  [gameCode, setGameCode] = useState<string>('');
@@ -34,6 +34,8 @@ const JoinGameScreen: React.FC<JoinGameScreenProps> = props => {
     const gameData = useRef<JoinGameBody>({roomId: '', username: ''});
     const [isValid, setIsValid] = useState(false);
     const [isLoading, setIsLoading] = useState(false);
+    const [isError, setIsError] = useState(false);
+
 
     const dispatch = useDispatch();
     const session = useSelector<RootState>(state => state.session)
@@ -55,17 +57,28 @@ const JoinGameScreen: React.FC<JoinGameScreenProps> = props => {
 
     useEffect(() => {
         socket.on('startGame',(scores: GameScore, usernames: UserNames) => {
+            dispatch(storeUser(usernames, scores))
             setSession(true);
         });
+
         socket.on('exception', function(data: any) {
             setIsLoading(false);
-            callAlert(data.message)
-          });
+            setIsLoading(false);
+            if(!isError) {
+                setIsError(true);
+                Alert.alert('', data.message, [{
+                    text: 'Ok',
+                    onPress: () => setIsError(false)
+                }]);
+            }
+        });
+
+
         return () => {
            socket.removeListener('startGame');
            socket.removeListener('exception');
         }
-    }, [])
+    }, [socket])
     
     const joinSession = useCallback(() => {
         setIsLoading(true);
@@ -73,11 +86,12 @@ const JoinGameScreen: React.FC<JoinGameScreenProps> = props => {
             dispatch(sessionAction.generateSession(roomDetails.roomId, roomDetails.canGenerateWord, roomDetails.userId));
             setIsLoading(false);
         })
-    }, [gameData]);
+    }, [gameData, socket]);
 
     const callAlert = useCallback((message: string) => {
         Alert.alert('Error', message, [{text: 'Ok'}])
     }, [])
+
     const gameCodeHandler = useCallback((gameCode: string) => {
         setGameCode(current => gameCode);
         
@@ -90,6 +104,7 @@ const JoinGameScreen: React.FC<JoinGameScreenProps> = props => {
             setUsername(current => username);
         }
     }, [gameData]);
+
     return (
         <KeyboardAvoidingView style={{flex: 1}} behavior={Platform.OS == "ios" ? "padding" : "height"}>
             <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
@@ -106,7 +121,7 @@ const JoinGameScreen: React.FC<JoinGameScreenProps> = props => {
                                     validateForm()
                                     setUsernameInputIsActive(false)
                                 }}
-                                onFocus={() => setUsernameInputIsActive(true)}
+                                onFocus={() => setUsernameInputIsActive(true)} autoCompleteType="off"
                                 spellCheck={false} autoCorrect={false} maxLength={10} autoFocus={true} clearTextOnFocus={false} onChangeText={usernameHandler}/>
                             </View>
                             <View style={styles.textLabelWrapper}>
@@ -125,9 +140,13 @@ const JoinGameScreen: React.FC<JoinGameScreenProps> = props => {
                                     <Text>Submit</Text>}
                                 </Button>
                             </View>
-                            <View  style={styles.button}>
-                                <Button onPress={() =>props.navigation.goBack()}>Cancel</Button>
-                            </View>
+                            {
+                                !isLoading? 
+                                    <View  style={styles.button}>
+                                        <Button onPress={() =>props.navigation.goBack()}>Cancel</Button>
+                                    </View>
+                                : <></>
+                            }
                         </View>
                     </ScrollView>
                 </View>

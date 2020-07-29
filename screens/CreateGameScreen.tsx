@@ -14,32 +14,72 @@ import ActiveStyle from '../constants/ActiveStyle';
 
 import AuthContext from '../AuthContext';
 import { RootState } from '../App';
-import {socket} from '../socket';
 import * as sessionAction from '../store/action/session';
 import { StackNavigationProp } from '@react-navigation/stack';
 import { SessionState } from '../store/types';
 
 import Constants from 'expo-constants';
+import { storeUser } from '../store/action/user';
 
 export interface CreateGameScreenProps {
     navigation: StackNavigationProp<any, 'CreateGameScreen'>
 };
 
 const CreateGameScreen: React.FC<CreateGameScreenProps> = props => {
-    const {setIsInSession:setSession, isConnectedToServer }= React.useContext(AuthContext);
+    const {setIsInSession:setSession, isConnectedToServer, socket }= React.useContext(AuthContext);
     
     const  [username, setUsername] = useState<string>('');
     const  [gameLength, setGameLength] = useState<string>("10");
     const [usernameInputIsActive, setUsernameInputIsActive] = useState(false);
     const [lengthInputIsActive, setLengthInputIsActive] = useState(false);
 
-    const gameData = useRef<CreateGameBody>({maxLength: 10, username: ''});
     const [isValid, setIsValid] = useState(false);
     const [isLoading, setIsLoading] = useState(false);
+    const [isError, setIsError] = useState(false);
+
     const [showModal, setShowModal] = useState(false);
+    
+    const gameData = useRef<CreateGameBody>({maxLength: 10, username: ''});
 
     const dispatch = useDispatch();
+
     const session = useSelector<RootState>(state => state.session) as SessionState
+
+    useEffect(() => {
+        validateForm();
+    }, [gameLength, username]);
+
+    useEffect(() => {
+        socket.on('startGame',(scores: GameScore, usernames: UserNames) => {
+            dispatch(storeUser(usernames, scores))
+            setSession(true);
+        });
+        socket.on('exception', function(data: any) {
+            setIsLoading(false);
+            setIsLoading(false);
+            if(!isError) {
+                setIsError(true);
+                Alert.alert('', data.message, [{
+                    text: 'Ok',
+                    onPress: () => setIsError(false)
+                }]);
+            }
+        });
+
+        socket.on('reconnect', () => {
+            console.log('reconnected  to server', socket.id);
+            (socket as SocketIOClient.Socket).emit('rejoinRoom', { 
+                roomId: session.roomId,
+                userId: session.userId
+            });
+        });
+
+        return () => {
+           socket.removeListener('startGame');
+           socket.removeListener('exception');
+           socket.removeListener('reconnect');
+        }
+    }, [socket]);
 
     const validateForm = useCallback(() => {
         if(gameLength && username) {
@@ -50,24 +90,6 @@ const CreateGameScreen: React.FC<CreateGameScreenProps> = props => {
             setIsValid(false)
         }
     }, [gameLength, username]);
-
-    useEffect(() => {
-        validateForm();
-    }, [gameLength, username]);
-
-    useEffect(() => {
-        socket.on('startGame',(scores: GameScore, usernames: UserNames) => {
-            setSession(true);
-        });
-        socket.on('exception', function(data: any) {
-            setIsLoading(false);
-            callAlert(data.message)
-        });
-        return () => {
-           socket.removeListener('startGame');
-           socket.removeListener('exception');
-        }
-    }, [])
     
     const createSession = useCallback(() => {
         setIsLoading(true);
@@ -80,12 +102,14 @@ const CreateGameScreen: React.FC<CreateGameScreenProps> = props => {
 
     const goBack = useCallback(()=> {
         if(showModal) {
+            setIsLoading(true);
             const leave: leaveGameBody = {
                 roomId: session.roomId,
                 userId: session.userId
             }
             socket.emit('leave',leave, () => {
                 setShowModal(false);
+                setIsLoading(false);
             })
         } else {
             props.navigation.goBack();
@@ -111,6 +135,7 @@ const CreateGameScreen: React.FC<CreateGameScreenProps> = props => {
             setUsername(current => username);
         }
     }, [gameData]);
+
     if(showModal) {
         return (
             <Modal animationType="slide">
@@ -123,15 +148,20 @@ const CreateGameScreen: React.FC<CreateGameScreenProps> = props => {
                     <Text style={{color: Colors.light, fontSize: 16, marginVertical: 20}}>Waiting for opponent to Join</Text>
                     <Text style={{color: Colors.light, fontSize: 16}}>Game Code: {session.roomId}</Text>
                     <View  style={styles.button}>
-                        <Button onPress={() =>goBack()}>Cancel</Button>
+                        <Button onPress={() =>goBack()} innerStyle={styles.buttonInnerStyle} disabled={isLoading}>
+                        {isLoading?
+                            <ActivityIndicator color={Colors.light} style={{...(Platform.OS === 'android' ? styles.androidActivityIndicatorFix: null)}}/> 
+                            :
+                            <Text>Cancel</Text>
+                        }
+                        </Button>
                     </View>
                 </SafeAreaView>
             </Modal>
         )
     }
   
-    return (
-        
+    return (    
         <KeyboardAvoidingView style={{flex: 1}} behavior={Platform.OS == "ios" ? "padding" : "height"}>
             <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
                 <View style={{...(ContainerStyle as ViewStyle), ...styles.container}}>
@@ -156,11 +186,11 @@ const CreateGameScreen: React.FC<CreateGameScreenProps> = props => {
                                 keyboardType="numeric" spellCheck={false} autoCorrect={false} onChangeText={gameLengthHandler} onBlur={() => {
                                     validateForm()
                                     setLengthInputIsActive(false)
-                                }} onFocus={() => setLengthInputIsActive(true)}/>
+                                }} onFocus={() => setLengthInputIsActive(true)} autoCompleteType="off"/>
                             </View>
                             <View  style={styles.button}>
                                 <Button onPress={() =>createSession()} disabled={!isValid || isLoading}  backgroundColor={isValid? '': 'gray'}
-                                innerStyle={styles.buttonInnerStyle}>
+                                innerStyle={styles.buttonInnerStyle} >
                                         {isLoading?
                                         <ActivityIndicator color={Colors.light} style={{...(Platform.OS === 'android' ? styles.androidActivityIndicatorFix: null)}}/> 
                                         :

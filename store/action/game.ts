@@ -1,4 +1,4 @@
-import { SEND_WORD, AppThunk, GameActions, SHUFFLE_GAME, SET_WORD, DROP_WORD, GameState } from '../types';
+import { SEND_WORD, AppThunk, GameActions, SHUFFLE_GAME, SET_WORD, DROP_WORD, GameState, RESET_WORD } from '../types';
 
 const _sendWord = (words: GameState): GameActions => {   
     return {
@@ -43,6 +43,10 @@ export const setWordAction = (letter: string, letterIndex: number, index: number
     return {type: SET_WORD, letterToFill: letter, letterIndex, index}
 }
 
-export const dropWordAction = (letterToDrop: string, letterToDropIndex: number,): GameActions => {
+export const dropWordAction = (letterToDrop: string, letterToDropIndex: number): GameActions => {
     return {type: DROP_WORD, letterToDrop: letterToDrop, letterToDropIndex}
+}
+
+export const resetGameAction = (): GameActions => {
+    return {type: RESET_WORD}
 }

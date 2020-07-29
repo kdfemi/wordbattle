@@ -28,3 +28,8 @@ export interface leaveGameBody {
     roomId: string;
     userId: string;
 }
+
+export interface Winner  {
+    score: number;
+    userId: string;
+}

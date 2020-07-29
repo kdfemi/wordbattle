@@ -8,12 +8,15 @@ import Colors from '../constants/Colors';
 import WordCard from '../components/WordCard';
 import {Ionicons} from '@expo/vector-icons';
 import { useDispatch, useSelector } from 'react-redux';
-import {sendWord, shuffleAction, setWordAction, dropWordAction} from '../store/action/game';
+import {sendWord, shuffleAction, setWordAction, dropWordAction, resetGameAction} from '../store/action/game';
 import { RootState } from 'App';
-import { GameState, SessionState } from '../store/types';
+import { GameState, SessionState, UserState } from '../store/types';
 import { StackScreenProps } from '@react-navigation/stack';
 import ContainerStyle from '../constants/ContainerStyle';
-import { socket } from '../socket';
+import { GameScore } from '../constants/types';
+import { updateScores, resetScores } from '../store/action/user';
+import AuthContext from '../AuthContext';
+import { resetSession } from '../store/action/session';
 
 function pad(val: number) {
     var valString = val + "";
@@ -33,11 +36,12 @@ export interface GameScreenProps {
 }
 
 const GameScreen: React.FC<StackScreenProps<GameScreenProps>> = props => {
-    props.navigation.setOptions({
-        title: "Word Battle"
-    });
+    // props.navigation.setOptions({
+    //     title: "Word Battle"
+    // });
     
-
+    const {setIsInSession:setSession, isConnectedToServer, socket }= React.useContext(AuthContext);
+    
     const [word, setWord] = useState<string>();
 
     const [currentWord, setCurrentWord] = useState<string[]>([]);
@@ -57,30 +61,137 @@ const GameScreen: React.FC<StackScreenProps<GameScreenProps>> = props => {
 
     const [isCorrect, setIsCorrect] = useState(true);
     const [notCorrectText, setNotCorrectText] = useState('');
+
+    const  [you, setYou] = useState({
+        score: '0',
+        name: ''
+    });
+    const [opponent, setOpponent] = useState({
+        score: '0',
+        name: ''
+    });
     
     const dispatch = useDispatch();
+
     const gameState = useSelector<RootState>(state => state.game) as GameState;
     const session = useSelector<RootState>(state => state.session) as SessionState;
+    const user = useSelector<RootState>(state => state.user) as UserState;
     
-    const timesCalled = useRef(0)
+    const timesCalled = useRef(0);
 
-    useEffect(() => {
-
-        if(session.canGenerateWord) {
+    useEffect(()=> {
+        if(session.canGenerateWord && !gameState.word) {
             socket.emit('generateWord', {roomId: session.roomId, userId: session.userId});
         }
+        console.log(Platform.OS, session.canGenerateWord)
+    }, []);
 
+    useEffect(() => {
         socket.on('word', async (data: any) => {
             
             await dispatch(await sendWord(data));
         });
 
-        return () => {
-            if(session.canGenerateWord) { 
-                socket.removeListener('word')
+        socket.on('score', (scores: GameScore) => {
+            dispatch(updateScores(scores))
+        });
+
+        socket.on('exception', function(data: any) {
+            setIsLoading(false);
+            if(!isError) {
+                setIsError(true);
+                Alert.alert('', data.message, [{
+                    text: 'Ok',
+                    onPress: () => setIsError(false)
+                }]);
             }
+        });
+
+        socket.on('announceWinner', (winner: {userId: string; score: number}, winnerUsername: string )=> {
+
+            props.navigation.replace('WinnerScreen', {
+                winner,
+                winnerUsername
+            });
+        });
+
+        socket.on('over', (message: string, winner: {userId: string; score: number}, winnerUsername: string ) => {
+
+            Alert.alert('Game End', message, [{text: 'Ok', onPress: () => {
+                props.navigation.replace('WinnerScreen', {
+                    winner,
+                    winnerUsername
+                });
+            }}]);
+        });
+
+        socket.on('reconnect', () => {
+            (socket as SocketIOClient.Socket).emit('rejoinRoom', { 
+                roomId: session.roomId,
+                userId: session.userId
+            });
+        });
+
+        return () => {
+            socket.removeListener('announceWinner');
+            socket.removeListener('over');
+           socket.removeListener('reconnect');
+           socket.removeListener('word');
+           socket.removeListener('score');
+           socket.removeListener('exception');
+
         }
-    }, [session]);
+    }, [socket]);
+
+
+    useEffect(() =>  {
+        const keys =  Object.keys(user);
+        const opponentKey = keys.find(key => key !== session.userId) as string;
+        setYou(currentWord => {
+            const data = user[session.userId];
+            return {
+                score: data.score,
+                name: 'You'
+            }
+        });
+        setOpponent(currentWord => {
+            const data = user[opponentKey];
+            return {
+                score: data.score,
+                name: data.username
+            }
+        });
+    }, [user]);
+
+    useEffect(() => {
+        if(!isCorrect) {
+            setNotCorrectText('Word doesn\'t match suggested word');
+        } else {
+            setNotCorrectText('');
+        }
+    }, [isCorrect]);
+
+    useEffect(() => {
+        const allWords = (gameState as GameState);
+        canSet.current = allWords.canSetSpot;
+        setCurrentWord(allWords.fillingLetter);
+        setSuggestedLetters(allWords.scrambledWord);
+        setWord(allWords.word)
+        console.log(allWords.word, "server Words", timesCalled.current  + Platform.OS)
+        timesCalled.current = +1;
+    }, [gameState]);
+
+    useEffect(() => {
+        let intervalId = setInterval(() => {
+            ++totalSeconds.current;
+            setSeconds(pad(totalSeconds.current % 60));
+            setMinutes(pad(parseInt((totalSeconds.current / 60).toString())));
+        }, 1000);
+        return () => {
+            totalSeconds.current = 0;
+            clearInterval(intervalId);
+        }
+    }, [word]);
 
     const submitWord = useCallback(async () => {
         setIsAlertVisible(false)
@@ -88,9 +199,11 @@ const GameScreen: React.FC<StackScreenProps<GameScreenProps>> = props => {
         setIsLoading(true);
         setIsCorrect(true);
         setIsAlertVisible(false);
-        console.log('submitWord')
         try{
-            socket.emit('generateWord', {roomId: session.roomId, userId: session.userId});
+            console.log(word);
+            
+            socket.emit('submit', {roomId: session.roomId, secs: totalSeconds.current, userId: session.userId, word: word})
+            // socket.emit('generateWord', {roomId: session.roomId, userId: session.userId});
 
         } catch (err) {
             setIsError(true)
@@ -103,7 +216,7 @@ const GameScreen: React.FC<StackScreenProps<GameScreenProps>> = props => {
         } finally {
             setIsLoading(false);
         }
-    }, [isAlertVisible, session]);
+    }, [isAlertVisible, session, totalSeconds.current, word]);
 
     const verifyWord = useCallback(async () => { 
             if(word === fromArrayToString(currentWord)) { 
@@ -114,24 +227,6 @@ const GameScreen: React.FC<StackScreenProps<GameScreenProps>> = props => {
                 
             }
     }, [word, currentWord, submitWord]);
-
-    useEffect(() => {
-        if(!isCorrect) {
-            setNotCorrectText('OOPs!!! that\'s is wrong');
-        } else {
-            setNotCorrectText('');
-        }
-    }, [isCorrect])
-
-    useEffect(() => {
-        const allWords = (gameState as GameState);
-        canSet.current = allWords.canSetSpot;
-        setCurrentWord(allWords.fillingLetter);
-        setSuggestedLetters(allWords.scrambledWord);
-        setWord(allWords.word)
-        console.log(allWords.word, "server Words", timesCalled.current  + Platform.OS)
-        timesCalled.current = +1;
-    }, [gameState])
 
 
     const shuffleButtonHandler = useCallback(() => {
@@ -158,95 +253,84 @@ const GameScreen: React.FC<StackScreenProps<GameScreenProps>> = props => {
     }, [currentWord, isCorrect, notCorrectText]);
 
 
-    useEffect(() => {
-        let intervalId = setInterval(() => {
-            ++totalSeconds.current;
-            setSeconds(pad(totalSeconds.current % 60));
-            setMinutes(pad(parseInt((totalSeconds.current / 60).toString())));
-        }, 1000);
-        return () => {
-            totalSeconds.current = 0;
-            clearInterval(intervalId);
-        }
-    }, [word]);
-
     return (
     <View style={{...(ContainerStyle as ViewStyle), ...styles.container}}>
-        {isLoading?
-        <>
-            <ActivityIndicator size="large" color={Colors.light}/>
-        </> :
-        !isError? 
-        <>
-            <View style={{flexDirection: 'row', width: '100%'}}>
-                <View style={{flex: 1}}>
-                    <Text>You: <Text>20</Text></Text>
-                </View>
-                <View>
-                    <Text>Opponent: <Text>20</Text></Text>
-                </View>
+        <View style={{flexDirection: 'row', width: '100%', paddingHorizontal: 10, marginBottom: 20, justifyContent: 'space-between'}}>
+            {/* Player */}
+            <View style={{flex: 1}}>
+                <Text style={styles.user}>{you.name}: <Text style={styles.score}>{you.score}</Text></Text>
             </View>
 
-            {/* TIME CARD */}
-            <View style={styles.timeContainer}>
-                <Text style={styles.timeIndicator}>Time : </Text>
-                <Card style={{...styles.timeCard}}>
-                    <Input style={{...styles.inputs, ...styles.time}} editable={false} value={minutes}/>
-                </Card>
-                <Text style={styles.timeIndicator}> : </Text>
-                <Card style={{borderRadius: 5}}>
-                    <Input style={{...styles.inputs, ...styles.time}} editable={false} value={seconds}/>
-                </Card>
-            </View>
- 
-            {/* TEXT FILL */}
-            <View style={{...styles.wordContainer}}>
-                {
-                    currentWord.map((word, index) => {
-                    return (
-                        <TouchableWithoutFeedback onPress={()=> {
-                            if(canSet.current[index] && word.length > 0) {
-                                dropWordHandler(word, index);
-                            }
-                        }} key={index} >
-                            <Card style={{...styles.timeCard, flex: 1, maxWidth: 55, ...(canSet.current[index]?styles.canFillIndicator : null)}} onStartShouldSetResponderCapture= {(event) => true} >
-                               <Input maxLength={1} editable={false} value={word} style={{...styles.inputs,  textTransform:'uppercase'}}/>
-                            </Card>
-                        </TouchableWithoutFeedback>
-                    )
-                })
-                }
+            {/* Rounds */}
+            <View style={{flex: 1}}>
+                <Text style={{textAlign: 'center', color: Colors.primary}}>rounds</Text>
+                <Text style={{...styles.rounds, textAlign: 'center'}}>{gameState.played} / {gameState.gameLength}</Text>
             </View>
 
-            {/* ERROR TEXT */}
-            <Card style={{width: notCorrectText? '100%' : 0}}>
-                <Text style={{color: Colors.danger, fontSize: 25, textAlign: 'center'}}>{notCorrectText}</Text>
+            {/* Opponent */}
+            <View style={{flex: 1}}>
+                <Text style={{...styles.user, textAlign: 'right'}}>{opponent.name}: <Text style={styles.score}>{opponent.score}</Text></Text>
+            </View>
+        </View>
+
+        {/* TIME CARD */}
+        <View style={styles.timeContainer}>
+            {/* <Text style={styles.timeIndicator}>Time : </Text> */}
+            <Card style={{...styles.timeCard}}>
+                <Input style={{...styles.inputs, ...styles.time}} editable={false} value={minutes}/>
             </Card>
+            <Text style={styles.timeIndicator}> : </Text>
+            <Card style={{borderRadius: 5}}>
+                <Input style={{...styles.inputs, ...styles.time}} editable={false} value={seconds}/>
+            </Card>
+        </View>
 
-            {/* SUGGESTED WORDS */}
-            <View style={styles.wordContainer}>
-                {
-                    suggestedLetters.map((word, index) => <WordCard text= {word} key={index} style={{flex: 1}} 
-                    onPress={() =>fillWordHandler(word, index)}/>)
+        {/* TEXT FILL */}
+        <View style={{...styles.wordContainer}}>
+            {
+                currentWord.map((word, index) => {
+                return (
+                    <TouchableWithoutFeedback onPress={()=> {
+                        if(canSet.current[index] && word.length > 0) {
+                            dropWordHandler(word, index);
+                        }
+                    }} key={index} >
+                        <Card style={{...styles.timeCard, flex: 1, maxWidth: 55, ...(canSet.current[index]?styles.canFillIndicator : null)}} onStartShouldSetResponderCapture= {(event) => true} >
+                            <Input maxLength={1} editable={false} value={word} style={{...styles.inputs,  textTransform:'uppercase'}}/>
+                        </Card>
+                    </TouchableWithoutFeedback>
+                )
+            })
+            }
+        </View>
+
+        {/* ERROR TEXT */}
+        <Card style={{width: notCorrectText? '100%' : 0}}>
+            <Text style={{color: Colors.danger, fontSize: 16, textAlign: 'center'}}>{notCorrectText}</Text>
+        </Card>
+
+        {/* SUGGESTED WORDS */}
+        <View style={styles.wordContainer}>
+            {
+                suggestedLetters.map((word, index) => <WordCard text= {word} key={index} style={{flex: 1}} 
+                onPress={() =>fillWordHandler(word, index)}/>)
+            }
+        </View>
+
+        {/* BUTTONS */}
+        <View style={styles.buttonContainer}>
+            <Button onPress={verifyWord} innerStyle={{width: 100, textAlign: 'center', textAlignVertical: 'center'}} disabled={isLoading}>
+                {isLoading?
+                <ActivityIndicator color={Colors.light} style={{...(Platform.OS === 'android' ? styles.androidActivityIndicatorFix: null)}}/> :
+                <Text>Send</Text>
                 }
+            </Button>
+            <View style={styles.circularButton} >
+                <Button onPress={() => shuffleButtonHandler()} style={{height: 42, width: 42}} disabled={isLoading} backgroundColor={!isLoading? '': 'gray'}>
+                    <Ionicons name={Platform.OS === 'android'?"md-shuffle" : "ios-shuffle"} size={32}/>
+                </Button>
             </View>
-
-            {/* BUTTONS */}
-            <View style={styles.buttonContainer}>
-                <Button onPress={verifyWord}>Send</Button>
-                <View style={styles.circularButton}>
-                    <Button onPress={() => shuffleButtonHandler()} style={{height: 42, width: 42}}>
-                        <Ionicons name={Platform.OS === 'android'?"md-shuffle" : "ios-shuffle"} size={32}/>
-                    </Button>
-                </View>
-            </View>
-        </> :
-        <>
-            <View>
-                <Text>An Error Occurred</Text>
-            </View>
-        </>
-        }
+        </View>
     </View>
   )
 }
@@ -256,14 +340,6 @@ const styles = StyleSheet.create({
     container: 
     {
         
-    },
-
-    title: 
-    {
-        fontFamily: 'egorycastle',
-        fontSize: 34,
-        marginBottom: 30,
-        color: Colors.primary,
     },
 
     inputs: 
@@ -279,11 +355,23 @@ const styles = StyleSheet.create({
 
     canFillIndicator: 
     {
-        borderColor: Colors.danger,
+        borderColor: Colors.green,
         borderWidth: 2,
-        borderStyle: 'solid'
+        borderStyle: 'solid',
     },
-
+    score: {
+        fontWeight: 'bold'
+    },
+    rounds: {
+        fontSize: 22,
+        fontWeight: 'bold',
+        color: Colors.blue
+    },
+    user: {
+        color: Colors.primary,
+        fontSize: 22,
+        fontWeight: '500'
+    },
     timeContainer: 
     {
         flexDirection: 'row',
@@ -314,7 +402,7 @@ const styles = StyleSheet.create({
     wordContainer: 
     {
         flexDirection: 'row',
-        margin: 40,
+        margin: 30,
         width: '100%',
         justifyContent: 'center'
     },
@@ -325,7 +413,10 @@ const styles = StyleSheet.create({
         width: '100%',
         justifyContent: 'center',
     },
-
+    androidActivityIndicatorFix: {
+        height: 10,
+        width: 89
+    },
     circularButton: 
     {
         marginLeft: 10,

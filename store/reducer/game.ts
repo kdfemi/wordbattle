@@ -1,10 +1,12 @@
-import { GameActions, GameState, SEND_WORD, SHUFFLE_GAME, SET_WORD, DROP_WORD } from '../types'
+import { GameActions, GameState, SEND_WORD, SHUFFLE_GAME, SET_WORD, DROP_WORD, RESET_WORD } from '../types'
 
 const initialState: GameState = {
     word: '',
     fillingLetter: [],
     scrambledWord: [],
-    canSetSpot: []
+    canSetSpot: [],
+    gameLength: 0,
+    played: 0
 }
 
 export default (state = initialState, action: GameActions): GameState => {
@@ -31,6 +33,8 @@ export default (state = initialState, action: GameActions): GameState => {
             return{
                 ...state
             }
+        case RESET_WORD:
+            return initialState;
         default: 
             return state;
 

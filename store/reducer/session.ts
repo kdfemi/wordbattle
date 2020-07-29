@@ -1,4 +1,4 @@
-import { SessionState, SessionActions, JOIN_SESSION, GENERATE_SESSION, CONNECTED_TO_SERVER, DISCONNECTED_TO_SERVER } from "../types";
+import { SessionState, SessionActions, JOIN_SESSION, GENERATE_SESSION, CONNECTED_TO_SERVER, DISCONNECTED_TO_SERVER, RESET_SESSION } from "../types";
 
 const initialState: SessionState = {
     inSession: false,
@@ -22,6 +22,9 @@ export default (state = initialState, action: SessionActions): SessionState => {
                 isConnectedToServer: true
             }
         case DISCONNECTED_TO_SERVER:
+            return state
+        case RESET_SESSION:
+            return initialState;
         default: 
         return state;
     }

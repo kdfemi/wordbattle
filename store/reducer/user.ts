@@ -1,4 +1,4 @@
-import { SessionState, SessionActions, JOIN_SESSION, GENERATE_SESSION, CONNECTED_TO_SERVER, DISCONNECTED_TO_SERVER, UserState, UserActions, UPDATE_SCORE, STORE_USER_ACTION } from "../types";
+import {UserState, UserActions, UPDATE_SCORE, STORE_USER_ACTION, RESET_WORD, RESET_USER } from "../types";
 
 const initialState: UserState = {
 
@@ -25,6 +25,8 @@ export default (state = initialState, action: UserActions): UserState => {
             return {
                 ...state
             }
+            case RESET_USER:
+                return initialState;
         default: 
         return state;
     }
