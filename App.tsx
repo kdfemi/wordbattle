@@ -53,7 +53,6 @@ export default function App() {
     socket.on('disconnect', () => {
       console.log('disconnected from server')
       setIsConnectedToServer(false);
-      setIsInSession(false);
     });
 
     socket.on('exception', function(data: any) {

@@ -78,7 +78,7 @@ const JoinGameScreen: React.FC<JoinGameScreenProps> = props => {
            socket.removeListener('startGame');
            socket.removeListener('exception');
         }
-    }, [socket])
+    }, [socket, session])
     
     const joinSession = useCallback(() => {
         setIsLoading(true);
@@ -121,6 +121,7 @@ const JoinGameScreen: React.FC<JoinGameScreenProps> = props => {
                                     validateForm()
                                     setUsernameInputIsActive(false)
                                 }}
+                                caretHidden={false}
                                 onFocus={() => setUsernameInputIsActive(true)} autoCompleteType="off"
                                 spellCheck={false} autoCorrect={false} maxLength={10} autoFocus={true} clearTextOnFocus={false} onChangeText={usernameHandler}/>
                             </View>
@@ -129,7 +130,7 @@ const JoinGameScreen: React.FC<JoinGameScreenProps> = props => {
                                 <Input value={gameCode} style={{...styles.input,  ...(gameCodeInputIsActive? ActiveStyle : null) as ViewStyle}} placeholder={"Enter Game code"} onBlur={() => {
                                     validateForm()
                                     setGameCodeInputIsActive(false)
-                                }}
+                                }} caretHidden={false}
                                 onFocus={() => setGameCodeInputIsActive(true)}
                                 spellCheck={false} autoCorrect={false} maxLength={10}  clearTextOnFocus={false} onChangeText={gameCodeHandler}/>
                             </View>

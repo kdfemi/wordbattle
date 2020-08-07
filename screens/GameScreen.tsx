@@ -1,5 +1,5 @@
-import React, { useRef, useCallback, useEffect, useState } from 'react';
-import {StyleSheet, View, Platform, ActivityIndicator, TouchableWithoutFeedback, Vibration, Alert, ViewStyle } from "react-native";
+import React, { useRef, useCallback, useEffect, useState, useMemo } from 'react';
+import {StyleSheet, View, Platform, ActivityIndicator, TouchableWithoutFeedback, Vibration, Alert, ViewStyle, TouchableOpacity } from "react-native";
 import Card from '../components/card';
 import Input from '../components/Input';
 import Button from '../components/Button';
@@ -13,7 +13,7 @@ import { RootState } from 'App';
 import { GameState, SessionState, UserState } from '../store/types';
 import { StackScreenProps } from '@react-navigation/stack';
 import ContainerStyle from '../constants/ContainerStyle';
-import { GameScore } from '../constants/types';
+import { GameScore, leaveGameBody } from '../constants/types';
 import { updateScores, resetScores } from '../store/action/user';
 import AuthContext from '../AuthContext';
 import { resetSession } from '../store/action/session';
@@ -36,9 +36,13 @@ export interface GameScreenProps {
 }
 
 const GameScreen: React.FC<StackScreenProps<GameScreenProps>> = props => {
-    // props.navigation.setOptions({
-    //     title: "Word Battle"
-    // });
+    props.navigation.setOptions({
+        headerRight: (props) => (
+        <TouchableOpacity onPress={goBack}
+            style={{padding: 8, backgroundColor: Colors.primary, marginRight: 10, borderRadius: 5}}>
+            <Text style={{fontSize: 15}}>EXIT</Text>
+            </TouchableOpacity>)
+    });
     
     const {setIsInSession:setSession, isConnectedToServer, socket }= React.useContext(AuthContext);
     
@@ -56,20 +60,15 @@ const GameScreen: React.FC<StackScreenProps<GameScreenProps>> = props => {
     const totalSeconds  = useRef<number>(0);
 
     const [isLoading, setIsLoading] = useState(false);
+    const [isCancelling, setIsCancelling] = useState(false);
     const [isError, setIsError] = useState(false);
     const [isAlertVisible, setIsAlertVisible] = useState(false);
 
     const [isCorrect, setIsCorrect] = useState(true);
     const [notCorrectText, setNotCorrectText] = useState('');
 
-    const  [you, setYou] = useState({
-        score: '0',
-        name: ''
-    });
-    const [opponent, setOpponent] = useState({
-        score: '0',
-        name: ''
-    });
+    const  [you, setYou] = useState({score: '0', name: ''});
+    const [opponent, setOpponent] = useState({score: '0', name: ''});
     
     const dispatch = useDispatch();
 
@@ -83,7 +82,6 @@ const GameScreen: React.FC<StackScreenProps<GameScreenProps>> = props => {
         if(session.canGenerateWord && !gameState.word) {
             socket.emit('generateWord', {roomId: session.roomId, userId: session.userId});
         }
-        console.log(Platform.OS, session.canGenerateWord)
     }, []);
 
     useEffect(() => {
@@ -98,6 +96,7 @@ const GameScreen: React.FC<StackScreenProps<GameScreenProps>> = props => {
 
         socket.on('exception', function(data: any) {
             setIsLoading(false);
+            setIsCancelling(false)
             if(!isError) {
                 setIsError(true);
                 Alert.alert('', data.message, [{
@@ -115,14 +114,20 @@ const GameScreen: React.FC<StackScreenProps<GameScreenProps>> = props => {
             });
         });
 
-        socket.on('over', (message: string, winner: {userId: string; score: number}, winnerUsername: string ) => {
-
-            Alert.alert('Game End', message, [{text: 'Ok', onPress: () => {
+        socket.on('over', (message: string, winner: {userId: string; score: number}, winnerUsername: string, cancelerId: string ) => {
+            if(cancelerId && (cancelerId === session.userId)) {
                 props.navigation.replace('WinnerScreen', {
                     winner,
                     winnerUsername
                 });
-            }}]);
+            } else {
+                Alert.alert('Game End', message, [{text: 'Ok', onPress: () => {
+                    props.navigation.replace('WinnerScreen', {
+                        winner,
+                        winnerUsername
+                    });
+                }}]);
+            }
         });
 
         socket.on('reconnect', () => {
@@ -177,7 +182,7 @@ const GameScreen: React.FC<StackScreenProps<GameScreenProps>> = props => {
         setCurrentWord(allWords.fillingLetter);
         setSuggestedLetters(allWords.scrambledWord);
         setWord(allWords.word)
-        console.log(allWords.word, "server Words", timesCalled.current  + Platform.OS)
+        console.log( " Word==> ",allWords.word, ' ' ,timesCalled.current+ ' '  + Platform.OS)
         timesCalled.current = +1;
     }, [gameState]);
 
@@ -200,11 +205,7 @@ const GameScreen: React.FC<StackScreenProps<GameScreenProps>> = props => {
         setIsCorrect(true);
         setIsAlertVisible(false);
         try{
-            console.log(word);
-            
             socket.emit('submit', {roomId: session.roomId, secs: totalSeconds.current, userId: session.userId, word: word})
-            // socket.emit('generateWord', {roomId: session.roomId, userId: session.userId});
-
         } catch (err) {
             setIsError(true)
             if(!isAlertVisible) {
@@ -227,7 +228,6 @@ const GameScreen: React.FC<StackScreenProps<GameScreenProps>> = props => {
                 
             }
     }, [word, currentWord, submitWord]);
-
 
     const shuffleButtonHandler = useCallback(() => {
         dispatch(shuffleAction(suggestedLetters));
@@ -252,87 +252,104 @@ const GameScreen: React.FC<StackScreenProps<GameScreenProps>> = props => {
         dispatch(dropWordAction(letterToDrop, letterToDropIndex));
     }, [currentWord, isCorrect, notCorrectText]);
 
+    const goBack = useCallback(()=> {
+      
+        setIsCancelling(true);
+        const leave: leaveGameBody = {
+            roomId: session.roomId,
+            userId: session.userId
+        }
+        socket.emit('cancel',leave, () => {
+            setIsCancelling(false);
+        })
+    }, [socket, session.roomId, session.userId]);
 
     return (
     <View style={{...(ContainerStyle as ViewStyle), ...styles.container}}>
-        <View style={{flexDirection: 'row', width: '100%', paddingHorizontal: 10, marginBottom: 20, justifyContent: 'space-between'}}>
-            {/* Player */}
-            <View style={{flex: 1}}>
-                <Text style={styles.user}>{you.name}: <Text style={styles.score}>{you.score}</Text></Text>
-            </View>
+        {!isCancelling?
+            <>
+                <View style={{flexDirection: 'row', width: '100%', paddingHorizontal: 10, marginBottom: 20, justifyContent: 'space-between'}}>
+                    {/* Player */}
+                    <View style={{flex: 1}}>
+                        <Text style={styles.user}>{you.name}: <Text style={styles.score}>{you.score}</Text></Text>
+                    </View>
 
-            {/* Rounds */}
-            <View style={{flex: 1}}>
-                <Text style={{textAlign: 'center', color: Colors.primary}}>rounds</Text>
-                <Text style={{...styles.rounds, textAlign: 'center'}}>{gameState.played} / {gameState.gameLength}</Text>
-            </View>
+                    {/* Rounds */}
+                    <View style={{flex: 1}}>
+                        <Text style={{textAlign: 'center', color: Colors.primary}}>rounds</Text>
+                        <Text style={{...styles.rounds, textAlign: 'center'}}>{gameState.played} / {gameState.gameLength}</Text>
+                    </View>
 
-            {/* Opponent */}
-            <View style={{flex: 1}}>
-                <Text style={{...styles.user, textAlign: 'right'}}>{opponent.name}: <Text style={styles.score}>{opponent.score}</Text></Text>
-            </View>
-        </View>
+                    {/* Opponent */}
+                    <View style={{flex: 1}}>
+                        <Text style={{...styles.user, textAlign: 'right'}}>{opponent.name}: <Text style={styles.score}>{opponent.score}</Text></Text>
+                    </View>
+                </View>
 
-        {/* TIME CARD */}
-        <View style={styles.timeContainer}>
-            {/* <Text style={styles.timeIndicator}>Time : </Text> */}
-            <Card style={{...styles.timeCard}}>
-                <Input style={{...styles.inputs, ...styles.time}} editable={false} value={minutes}/>
-            </Card>
-            <Text style={styles.timeIndicator}> : </Text>
-            <Card style={{borderRadius: 5}}>
-                <Input style={{...styles.inputs, ...styles.time}} editable={false} value={seconds}/>
-            </Card>
-        </View>
+                {/* TIME CARD */}
+                <View style={styles.timeContainer}>
+                    {/* <Text style={styles.timeIndicator}>Time : </Text> */}
+                    <Card style={{...styles.timeCard}}>
+                        <Input style={{...styles.inputs, ...styles.time}} editable={false} value={minutes}/>
+                    </Card>
+                    <Text style={styles.timeIndicator}> : </Text>
+                    <Card style={{borderRadius: 5}}>
+                        <Input style={{...styles.inputs, ...styles.time}} editable={false} value={seconds}/>
+                    </Card>
+                </View>
 
-        {/* TEXT FILL */}
-        <View style={{...styles.wordContainer}}>
-            {
-                currentWord.map((word, index) => {
-                return (
-                    <TouchableWithoutFeedback onPress={()=> {
-                        if(canSet.current[index] && word.length > 0) {
-                            dropWordHandler(word, index);
+                {/* TEXT FILL */}
+                <View style={{...styles.wordContainer}}>
+                    {
+                        currentWord.map((word, index) => {
+                        return (
+                            <TouchableWithoutFeedback onPress={()=> {
+                                if(canSet.current[index] && word.length > 0) {
+                                    dropWordHandler(word, index);
+                                }
+                            }} key={index} >
+                                <Card style={{...styles.timeCard, flex: 1, maxWidth: 55, ...(canSet.current[index]?styles.canFillIndicator : null)}} onStartShouldSetResponderCapture= {(event) => true} >
+                                    <Input autoCapitalize="characters" maxLength={1} editable={false} value={word} style={{...styles.inputs,  textTransform:'capitalize'}}/>
+                                </Card>
+                            </TouchableWithoutFeedback>
+                        )
+                    })
+                    }
+                </View>
+
+                {/* ERROR TEXT */}
+                <Card style={{width: notCorrectText? '100%' : 0}}>
+                    <Text style={{color: Colors.danger, fontSize: 16, textAlign: 'center'}}>{notCorrectText}</Text>
+                </Card>
+
+                {/* SUGGESTED WORDS */}
+                <View style={styles.wordContainer}>
+                    {
+                        suggestedLetters.map((word, index) => <WordCard text= {word} key={index} style={{flex: 1}} 
+                        onPress={() =>fillWordHandler(word, index)}/>)
+                    }
+                </View>
+
+                {/* BUTTONS */}
+                <View style={styles.buttonContainer}>
+                    <Button onPress={verifyWord} innerStyle={{width: 100, textAlign: 'center', textAlignVertical: 'center'}} disabled={isLoading}>
+                        {isLoading?
+                        <ActivityIndicator color={Colors.light} style={{...(Platform.OS === 'android' ? styles.androidActivityIndicatorFix : null)}}/> :
+                        <Text>Send</Text>
                         }
-                    }} key={index} >
-                        <Card style={{...styles.timeCard, flex: 1, maxWidth: 55, ...(canSet.current[index]?styles.canFillIndicator : null)}} onStartShouldSetResponderCapture= {(event) => true} >
-                            <Input maxLength={1} editable={false} value={word} style={{...styles.inputs,  textTransform:'uppercase'}}/>
-                        </Card>
-                    </TouchableWithoutFeedback>
-                )
-            })
-            }
-        </View>
+                    </Button>
+                    <View style={styles.circularButton} >
+                        <Button onPress={() => shuffleButtonHandler()} style={{height: 42, width: 42}} disabled={isLoading} backgroundColor={!isLoading? '': 'gray'}>
+                            <Ionicons name={Platform.OS === 'android'?"md-shuffle" : "ios-shuffle"} size={32}/>
+                        </Button>
+                    </View>
+                </View>  
+            </> :
+            <ActivityIndicator color={Colors.light} /> 
 
-        {/* ERROR TEXT */}
-        <Card style={{width: notCorrectText? '100%' : 0}}>
-            <Text style={{color: Colors.danger, fontSize: 16, textAlign: 'center'}}>{notCorrectText}</Text>
-        </Card>
-
-        {/* SUGGESTED WORDS */}
-        <View style={styles.wordContainer}>
-            {
-                suggestedLetters.map((word, index) => <WordCard text= {word} key={index} style={{flex: 1}} 
-                onPress={() =>fillWordHandler(word, index)}/>)
-            }
-        </View>
-
-        {/* BUTTONS */}
-        <View style={styles.buttonContainer}>
-            <Button onPress={verifyWord} innerStyle={{width: 100, textAlign: 'center', textAlignVertical: 'center'}} disabled={isLoading}>
-                {isLoading?
-                <ActivityIndicator color={Colors.light} style={{...(Platform.OS === 'android' ? styles.androidActivityIndicatorFix: null)}}/> :
-                <Text>Send</Text>
-                }
-            </Button>
-            <View style={styles.circularButton} >
-                <Button onPress={() => shuffleButtonHandler()} style={{height: 42, width: 42}} disabled={isLoading} backgroundColor={!isLoading? '': 'gray'}>
-                    <Ionicons name={Platform.OS === 'android'?"md-shuffle" : "ios-shuffle"} size={32}/>
-                </Button>
-            </View>
-        </View>
+        }
     </View>
-  )
+  );
 }
 
 const styles = StyleSheet.create({

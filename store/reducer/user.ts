@@ -26,7 +26,7 @@ export default (state = initialState, action: UserActions): UserState => {
                 ...state
             }
             case RESET_USER:
-                return initialState;
+                return {};
         default: 
         return state;
     }

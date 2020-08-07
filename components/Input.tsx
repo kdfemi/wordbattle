@@ -7,7 +7,7 @@ export interface InputProps extends TextInputProps {
 }
 
 const Input: React.FC<InputProps> = props => {
-    return (<TextInput {...props} style={{...styles.input, ...(props.style as ViewStyle)}} caretHidden={true} />)
+    return (<TextInput caretHidden={true} {...props} style={{...styles.input, ...(props.style as ViewStyle)}}  />)
 }
 
 const styles = StyleSheet.create({

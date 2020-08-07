@@ -18,8 +18,8 @@ import * as sessionAction from '../store/action/session';
 import { StackNavigationProp } from '@react-navigation/stack';
 import { SessionState } from '../store/types';
 
-import Constants from 'expo-constants';
-import { storeUser } from '../store/action/user';
+import { storeUser, resetScores } from '../store/action/user';
+import { resetGameAction } from '../store/action/game';
 
 export interface CreateGameScreenProps {
     navigation: StackNavigationProp<any, 'CreateGameScreen'>
@@ -35,7 +35,7 @@ const CreateGameScreen: React.FC<CreateGameScreenProps> = props => {
 
     const [isValid, setIsValid] = useState(false);
     const [isLoading, setIsLoading] = useState(false);
-    const [isError, setIsError] = useState(false);
+    const isError = useRef(false);
 
     const [showModal, setShowModal] = useState(false);
     
@@ -56,22 +56,23 @@ const CreateGameScreen: React.FC<CreateGameScreenProps> = props => {
         });
         socket.on('exception', function(data: any) {
             setIsLoading(false);
-            setIsLoading(false);
-            if(!isError) {
-                setIsError(true);
+            if(!isError.current) {
+                isError.current = true;
                 Alert.alert('', data.message, [{
                     text: 'Ok',
-                    onPress: () => setIsError(false)
+                    onPress: () => isError.current = false
                 }]);
             }
         });
 
         socket.on('reconnect', () => {
             console.log('reconnected  to server', socket.id);
-            (socket as SocketIOClient.Socket).emit('rejoinRoom', { 
-                roomId: session.roomId,
-                userId: session.userId
-            });
+            if(session.roomId && session.userId ) {
+                (socket as SocketIOClient.Socket).emit('rejoinRoom', { 
+                    roomId: session.roomId,
+                    userId: session.userId
+                });
+            }
         });
 
         return () => {
@@ -79,7 +80,7 @@ const CreateGameScreen: React.FC<CreateGameScreenProps> = props => {
            socket.removeListener('exception');
            socket.removeListener('reconnect');
         }
-    }, [socket]);
+    }, [socket, session]);
 
     const validateForm = useCallback(() => {
         if(gameLength && username) {
@@ -108,6 +109,9 @@ const CreateGameScreen: React.FC<CreateGameScreenProps> = props => {
                 userId: session.userId
             }
             socket.emit('leave',leave, () => {
+                dispatch(sessionAction.resetSession())
+                dispatch(resetGameAction())
+                dispatch(resetScores())
                 setShowModal(false);
                 setIsLoading(false);
             })
@@ -178,6 +182,7 @@ const CreateGameScreen: React.FC<CreateGameScreenProps> = props => {
                                     setUsernameInputIsActive(false)
                                 }}
                                 onFocus={() => setUsernameInputIsActive(true)}
+                                caretHidden={false}
                                 spellCheck={false} autoCorrect={false} maxLength={10} autoFocus={true} clearTextOnFocus={false} onChangeText={usernameHandler} />
                             </View>
                             <View style={styles.textLabelWrapper}>
@@ -186,7 +191,8 @@ const CreateGameScreen: React.FC<CreateGameScreenProps> = props => {
                                 keyboardType="numeric" spellCheck={false} autoCorrect={false} onChangeText={gameLengthHandler} onBlur={() => {
                                     validateForm()
                                     setLengthInputIsActive(false)
-                                }} onFocus={() => setLengthInputIsActive(true)} autoCompleteType="off"/>
+                                }} caretHidden={false}
+                                onFocus={() => setLengthInputIsActive(true)} autoCompleteType="off"/>
                             </View>
                             <View  style={styles.button}>
                                 <Button onPress={() =>createSession()} disabled={!isValid || isLoading}  backgroundColor={isValid? '': 'gray'}
