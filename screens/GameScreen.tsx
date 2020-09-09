@@ -101,7 +101,13 @@ const GameScreen: React.FC<StackScreenProps<GameScreenProps>> = props => {
                 setIsError(true);
                 Alert.alert('', data.message, [{
                     text: 'Ok',
-                    onPress: () => setIsError(false)
+                    onPress: () => {
+                        setIsError(false);
+                        setSession(false);
+                        dispatch(resetGameAction());
+                        dispatch(resetScores());
+                        dispatch(resetSession());
+                    }
                 }]);
             }
         });

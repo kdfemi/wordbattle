@@ -16,6 +16,7 @@ import StartNavigator from './navigation/StartNavigator';
 import AuthContext from './AuthContext';
 
 import io from 'socket.io-client';
+import { websocketLink } from './env';
 
 // import {socket} from './socket';
 
@@ -41,7 +42,7 @@ export default function App() {
   const [isLoading, setIsLoading] = useState(true);
   const [isInSession, setIsInSession] = useState(false); // Switch navigator screen
   const[isConnectedToServer, setIsConnectedToServer] = useState(false); // check if websocket is connected
-  const [socket, setSocket] = useState(io.connect("http://10.152.2.77:3000", {autoConnect: false}));
+  const [socket, setSocket] = useState(io.connect(websocketLink, {autoConnect: false}));
 
   useEffect(() => {
     socket.connect()

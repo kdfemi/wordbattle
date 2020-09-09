@@ -177,13 +177,16 @@ const CreateGameScreen: React.FC<CreateGameScreenProps> = props => {
                         <View style={styles.wrapper}>
                             <View style={styles.textLabelWrapper}>
                                 <Text style={styles.label}>enter username</Text>
-                                <Input value={username} style={{...styles.input, width: '80%', ...(usernameInputIsActive? ActiveStyle : null) as ViewStyle}} placeholder={"Enter Your username"} onBlur={() => {
+                                <Input value={username} 
+                                style={{...styles.input, width: '80%', ...(usernameInputIsActive? ActiveStyle : null) as ViewStyle}} 
+                                placeholder={"Enter Your username"} onBlur={() => {
                                     validateForm()
                                     setUsernameInputIsActive(false)
                                 }}
                                 onFocus={() => setUsernameInputIsActive(true)}
-                                caretHidden={false}
-                                spellCheck={false} autoCorrect={false} maxLength={10} autoFocus={true} clearTextOnFocus={false} onChangeText={usernameHandler} />
+                                caretHidden={false}  autoCapitalize={"none"}
+                                spellCheck={false} autoCorrect={false} maxLength={10} autoFocus={Platform.OS === 'ios' ? true : false} 
+                                clearTextOnFocus={false} onChangeText={usernameHandler} />
                             </View>
                             <View style={styles.textLabelWrapper}>
                                 <Text style={styles.label}>enter number of rounds</Text>

@@ -117,20 +117,24 @@ const JoinGameScreen: React.FC<JoinGameScreenProps> = props => {
                         <View style={styles.wrapper}>
                             <View style={styles.textLabelWrapper}>
                                 <Text style={styles.label}>enter username</Text>
-                                <Input value={username} style={{...styles.input,  ...(usernameInputIsActive? ActiveStyle : null) as ViewStyle}} placeholder={"Enter Your username"} onBlur={() => {
+                                <Input value={username} style={{...styles.input,  ...(usernameInputIsActive? ActiveStyle : null) as ViewStyle}} 
+                                placeholder={"Enter Your username"} onBlur={() => {
                                     validateForm()
                                     setUsernameInputIsActive(false)
                                 }}
                                 caretHidden={false}
                                 onFocus={() => setUsernameInputIsActive(true)} autoCompleteType="off"
-                                spellCheck={false} autoCorrect={false} maxLength={10} autoFocus={true} clearTextOnFocus={false} onChangeText={usernameHandler}/>
+                                spellCheck={false} autoCorrect={false} maxLength={10}
+                                autoCapitalize={"none"}
+                                autoFocus={Platform.OS === 'ios' ? true : false}
+                                 clearTextOnFocus={false} onChangeText={usernameHandler}/>
                             </View>
                             <View style={styles.textLabelWrapper}>
                             <Text style={styles.label}>enter game code</Text>
                                 <Input value={gameCode} style={{...styles.input,  ...(gameCodeInputIsActive? ActiveStyle : null) as ViewStyle}} placeholder={"Enter Game code"} onBlur={() => {
                                     validateForm()
                                     setGameCodeInputIsActive(false)
-                                }} caretHidden={false}
+                                }} caretHidden={false}  autoCapitalize={"none"}
                                 onFocus={() => setGameCodeInputIsActive(true)}
                                 spellCheck={false} autoCorrect={false} maxLength={10}  clearTextOnFocus={false} onChangeText={gameCodeHandler}/>
                             </View>
