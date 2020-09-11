@@ -12,3 +12,7 @@ web-report/
 
 # macOS
 .DS_Store
+#private
+wordBattle.jks
+wordBattle_upload_cert.pem
+private.txt
