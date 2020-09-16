@@ -7,7 +7,7 @@ const _sendWord = (words: GameState): GameActions => {
     }
 }
 
-export const sendWord =  (data: any):AppThunk<void> => {
+export const sendWord =  (data: any):AppThunk<Promise<void>> => {
     return async (dispatch, state) => {
         try {
             const tempArray: boolean[] = [];

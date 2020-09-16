@@ -56,13 +56,12 @@ const JoinGameScreen: React.FC<JoinGameScreenProps> = props => {
     }, [gameCode, username]);
 
     useEffect(() => {
-        socket.on('startGame',(scores: GameScore, usernames: UserNames) => {
-            dispatch(storeUser(usernames, scores))
+        socket.on('startGame',async (scores: GameScore, usernames: UserNames) => {
+            await dispatch(storeUser(usernames, scores))
             setSession(true);
         });
 
         socket.on('exception', function(data: any) {
-            setIsLoading(false);
             setIsLoading(false);
             if(!isError) {
                 setIsError(true);
@@ -82,8 +81,8 @@ const JoinGameScreen: React.FC<JoinGameScreenProps> = props => {
     
     const joinSession = useCallback(() => {
         setIsLoading(true);
-        socket.emit('joinRoom', gameData.current, (roomDetails: RoomDetails) => {
-            dispatch(sessionAction.generateSession(roomDetails.roomId, roomDetails.canGenerateWord, roomDetails.userId));
+        socket.emit('joinRoom', gameData.current, async (roomDetails: RoomDetails) => {
+            await dispatch(sessionAction.generateSession(roomDetails.roomId, roomDetails.canGenerateWord, roomDetails.userId));
             setIsLoading(false);
         })
     }, [gameData, socket]);

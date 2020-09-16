@@ -6,7 +6,7 @@
       "ios",
       "android"
     ],
-    "version": "0.0.1",
+    "version": "0.0.2",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "splash": {
@@ -15,7 +15,8 @@
       "backgroundColor": "#222831"
     },
     "updates": {
-      "fallbackToCacheTimeout": 0
+      "fallbackToCacheTimeout": 0,
+      "enabled": false
     },
     "assetBundlePatterns": [
       "**/*"
@@ -30,9 +31,11 @@
         "foregroundImage": "./assets/icon.png",
         "backgroundColor": "#222831"
       },
-      "permissions": [],
+      "permissions": ["VIBRATE"],
       "package": "com.devfemi.wordbattle",
-      "versionCode": 1
-    }
+      "versionCode": 1,
+      "enableDangerousExperimentalLeanBuilds": true
+    },
+    "description": ""
   }
 }

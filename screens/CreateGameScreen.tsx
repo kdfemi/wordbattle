@@ -94,8 +94,8 @@ const CreateGameScreen: React.FC<CreateGameScreenProps> = props => {
     
     const createSession = useCallback(() => {
         setIsLoading(true);
-        socket.emit('createRoom', gameData.current, (roomDetails: RoomDetails) => {
-            dispatch(sessionAction.generateSession(roomDetails.roomId, roomDetails.canGenerateWord, roomDetails.userId));
+        socket.emit('createRoom', gameData.current, async (roomDetails: RoomDetails) => {
+            await dispatch(sessionAction.generateSession(roomDetails.roomId, roomDetails.canGenerateWord, roomDetails.userId));
             setShowModal(true)
             setIsLoading(false);
         })
@@ -108,7 +108,7 @@ const CreateGameScreen: React.FC<CreateGameScreenProps> = props => {
                 roomId: session.roomId,
                 userId: session.userId
             }
-            socket.emit('leave',leave, () => {
+            socket.emit('leave', leave, () => {
                 dispatch(sessionAction.resetSession())
                 dispatch(resetGameAction())
                 dispatch(resetScores())

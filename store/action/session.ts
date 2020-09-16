@@ -4,7 +4,7 @@ const _generateSession = (roomId: string, canGenerateWord: boolean, userId: stri
     return {type: GENERATE_SESSION, payload: {canGenerateWord, roomId, userId}};
 };
 
-export const generateSession = (roomId: string, canGenerateWord: boolean, userId: string): AppThunk<void>   => {
+export const generateSession = (roomId: string, canGenerateWord: boolean, userId: string): AppThunk<Promise<void>>  => {
      return async (dispatch, actionState) => {
         dispatch(_generateSession(roomId, canGenerateWord, userId));
     }
@@ -14,9 +14,9 @@ const _joinSession = (): SessionActions => {
     return {type: JOIN_SESSION, payload: null};
 };
 
-export const joinSession = (): AppThunk<void> => {
+export const joinSession = (): AppThunk<Promise<void>> => {
     return async (dispatch, actionState) => {
-        return dispatch(_joinSession())
+        dispatch(_joinSession())
     };
 };
 

@@ -18,13 +18,13 @@ const _updateScore = ( gameScores: GameScore): UserActions => {
     }
 }
 
-export const storeUser =  (usernames: UserNames, gameScores: GameScore):AppThunk<void> => {
+export const storeUser =  (usernames: UserNames, gameScores: GameScore):AppThunk<Promise<void>> => {
     return async (dispatch, state) => {
         dispatch(_storeUser(usernames, gameScores))
     }
 }
 
-export const updateScores = (scores: GameScore):AppThunk<void> => {
+export const updateScores = (scores: GameScore):AppThunk<Promise<void>> => {
     return async (dispatch, state) => {
         dispatch(_updateScore(scores))
     }
