@@ -77,7 +77,7 @@ const GameScreen: React.FC<StackScreenProps<GameScreenProps>> = props => {
     const totalSeconds  = useRef<number>(0);
     const setTimeOutId  = useRef<number>();
 
-    const [isLoading, setIsLoading] = useState(false);
+    const [isLoading, setIsLoading] = useState(true);
     const [isCancelling, setIsCancelling] = useState(false);
     const [isError, setIsError] = useState(false);
     const [isAlertVisible, setIsAlertVisible] = useState(false);
@@ -110,7 +110,7 @@ const GameScreen: React.FC<StackScreenProps<GameScreenProps>> = props => {
 
     useEffect(() => {
         socket.on('word', async (data: any) => {
-            
+            setIsLoading(false);
             await dispatch(await sendWord(data));
         });
 
@@ -264,14 +264,13 @@ const GameScreen: React.FC<StackScreenProps<GameScreenProps>> = props => {
             socket.emit('submit', {roomId: session.roomId, secs: totalSeconds.current, userId: session.userId, word: word, round: gameState.played})
         } catch (err) {
             setIsError(true)
+            setIsLoading(false);
             if(!isAlertVisible) {
                 setIsAlertVisible(true);
                 Alert.alert('Network Error', err.message? err.message.split[0] : err, [
                     {onPress: () =>submitWord(), text: 'Retry'}
                 ])
             }
-        } finally {
-            setIsLoading(false);
         }
     }, [isAlertVisible, session, totalSeconds.current, word]);
 
@@ -281,7 +280,6 @@ const GameScreen: React.FC<StackScreenProps<GameScreenProps>> = props => {
             } else {
                 Vibration.vibrate(1000);
                 setIsCorrect(false);
-                
             }
     }, [word, currentWord, submitWord]);
 
@@ -389,7 +387,8 @@ const GameScreen: React.FC<StackScreenProps<GameScreenProps>> = props => {
 
                 {/* BUTTONS */}
                 <View style={styles.buttonContainer}>
-                    <Button onPress={verifyWord} innerStyle={{width: 100, textAlign: 'center', textAlignVertical: 'center'}} disabled={isLoading}>
+                    <Button onPress={verifyWord} innerStyle={{width: 100, textAlign: 'center', textAlignVertical: 'center'}} 
+                    backgroundColor={!isLoading? '': 'gray'} disabled={isLoading}>
                         {isLoading?
                         <ActivityIndicator color={Colors.light} style={{...(Platform.OS === 'android' ? styles.androidActivityIndicatorFix : null)}}/> :
                         <Text>Send</Text>
