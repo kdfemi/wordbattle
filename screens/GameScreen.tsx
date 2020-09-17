@@ -1,5 +1,5 @@
 import React, { useRef, useCallback, useEffect, useState, useMemo } from 'react';
-import {StyleSheet, View, Platform, ActivityIndicator, TouchableWithoutFeedback, Vibration, Alert, ViewStyle, TouchableOpacity } from "react-native";
+import {StyleSheet, View, Platform, ActivityIndicator, TouchableWithoutFeedback, Vibration, Alert, ViewStyle, TouchableOpacity, Animated } from "react-native";
 import Card from '../components/card';
 import Input from '../components/Input';
 import Button from '../components/Button';
@@ -36,6 +36,23 @@ export interface GameScreenProps {
 }
 
 const GameScreen: React.FC<StackScreenProps<GameScreenProps>> = props => {
+    
+    const slideUpAmin = useRef(new Animated.Value(-40)).current;
+    
+    const slideUp = () => {
+        Animated.timing(slideUpAmin, {
+          toValue: 10,
+          duration: 300
+        }).start();
+    };
+
+    const slideDown = () => {
+        Animated.timing(slideUpAmin, {
+          toValue: -40,
+          duration: 300
+        }).start();
+    };
+
     props.navigation.setOptions({
         headerRight: (props) => (
         <TouchableOpacity onPress={goBack}
@@ -58,11 +75,13 @@ const GameScreen: React.FC<StackScreenProps<GameScreenProps>> = props => {
     const canSet = useRef<boolean[]>([]);
 
     const totalSeconds  = useRef<number>(0);
+    const setTimeOutId  = useRef<number>();
 
     const [isLoading, setIsLoading] = useState(false);
     const [isCancelling, setIsCancelling] = useState(false);
     const [isError, setIsError] = useState(false);
     const [isAlertVisible, setIsAlertVisible] = useState(false);
+    const [errorMessage, setErrorMessage] = useState<string>('');
 
     const [isCorrect, setIsCorrect] = useState(true);
     const [notCorrectText, setNotCorrectText] = useState('');
@@ -77,6 +96,12 @@ const GameScreen: React.FC<StackScreenProps<GameScreenProps>> = props => {
     const user = useSelector<RootState>(state => state.user) as UserState;
     
     const timesCalled = useRef(0);
+    const removeToast = () => {
+        setIsError(false);
+        setErrorMessage('');
+        slideDown();
+        setTimeOutId.current = undefined; 
+    }
 
     useEffect(()=> {
         if(session.canGenerateWord && !gameState.word) {
@@ -97,6 +122,32 @@ const GameScreen: React.FC<StackScreenProps<GameScreenProps>> = props => {
         socket.on('exception', function(data: any) {
             setIsLoading(false);
             setIsCancelling(false)
+            if(!isError && data.status === -1) {
+                setIsError(true);
+                Alert.alert('', data.message, [{
+                    text: 'Ok',
+                    onPress: () => {
+                        setIsError(false);
+                        setSession(false);
+                        socket.emit('fatalError', {roomId: session.roomId, userId: session.userId});
+                        dispatch(resetGameAction());
+                        dispatch(resetScores());
+                        dispatch(resetSession());
+                    }
+                }]);
+            } else {
+                setErrorMessage(data.message);
+                console.log('Got to this error')
+                slideUp();
+                setTimeOutId.current = setTimeout(() => {
+                    removeToast();
+                }, 2000);
+            }
+        });
+
+        socket.on('fatalError', function(data: any) {
+            setIsLoading(false);
+            setIsCancelling(false)
             if(!isError) {
                 setIsError(true);
                 Alert.alert('', data.message, [{
@@ -109,7 +160,7 @@ const GameScreen: React.FC<StackScreenProps<GameScreenProps>> = props => {
                         dispatch(resetSession());
                     }
                 }]);
-            }
+            } 
         });
 
         socket.on('announceWinner', (winner: {userId: string; score: number}, winnerUsername: string )=> {
@@ -146,11 +197,14 @@ const GameScreen: React.FC<StackScreenProps<GameScreenProps>> = props => {
         return () => {
             socket.removeListener('announceWinner');
             socket.removeListener('over');
-           socket.removeListener('reconnect');
-           socket.removeListener('word');
-           socket.removeListener('score');
-           socket.removeListener('exception');
-
+            socket.removeListener('reconnect');
+            socket.removeListener('word');
+            socket.removeListener('score');
+            socket.removeListener('exception');
+            socket.removeListener('fatalError');
+            if(setTimeOutId)
+                clearTimeout(setTimeOutId.current);
+                slideDown();
         }
     }, [socket]);
 
@@ -211,7 +265,7 @@ const GameScreen: React.FC<StackScreenProps<GameScreenProps>> = props => {
         setIsCorrect(true);
         setIsAlertVisible(false);
         try{
-            socket.emit('submit', {roomId: session.roomId, secs: totalSeconds.current, userId: session.userId, word: word})
+            socket.emit('submit', {roomId: session.roomId, secs: totalSeconds.current, userId: session.userId, word: word, round: gameState.played})
         } catch (err) {
             setIsError(true)
             if(!isAlertVisible) {
@@ -270,6 +324,7 @@ const GameScreen: React.FC<StackScreenProps<GameScreenProps>> = props => {
         })
     }, [socket, session.roomId, session.userId]);
 
+      
     return (
     <View style={{...(ContainerStyle as ViewStyle), ...styles.container}}>
         {!isCancelling?
@@ -354,6 +409,13 @@ const GameScreen: React.FC<StackScreenProps<GameScreenProps>> = props => {
             <ActivityIndicator color={Colors.light} /> 
 
         }
+       <Animated.View style={[styles.toast, {bottom: slideUpAmin}]}>
+                <TouchableOpacity style={{width: '100%', height: '100%'}} onPress={removeToast}>
+                    <Text style={{color: Colors.light, textAlign: 'center', fontSize: 16}}>{errorMessage}</Text>
+                </TouchableOpacity>
+        </Animated.View>
+        
+
     </View>
   );
 }
@@ -445,6 +507,14 @@ const styles = StyleSheet.create({
         marginLeft: 10,
         borderRadius: 21,
         overflow: 'hidden'
+    },
+    toast: {
+        position: 'absolute',
+        width: '90%',
+        minHeight: 36,
+        backgroundColor: Colors.red,
+        borderRadius: 10,
+        padding: 5
     }
 
 });
