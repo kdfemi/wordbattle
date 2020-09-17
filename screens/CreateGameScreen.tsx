@@ -150,7 +150,7 @@ const CreateGameScreen: React.FC<CreateGameScreenProps> = props => {
                         <Loader delay={100} start={0} end={-20} duration={200} style={{backgroundColor: Colors.blue}}/>
                     </View>
                     <Text style={{color: Colors.light, fontSize: 16, marginVertical: 20}}>Waiting for opponent to Join</Text>
-                    <Text style={{color: Colors.light, fontSize: 16}}>Game Code: {session.roomId}</Text>
+                    <Text style={{color: Colors.light, fontSize: 16}}>Game Code: <Text  style={{ fontFamily: 'raleway-medium', fontWeight: 'bold'}}>{session.roomId}</Text></Text>
                     <View  style={styles.button}>
                         <Button onPress={() =>goBack()} innerStyle={styles.buttonInnerStyle} disabled={isLoading}>
                         {isLoading?
@@ -253,7 +253,10 @@ const styles = StyleSheet.create({
         backgroundColor: 'white',
         marginVertical: 10,
         borderRadius: 10,
-        textAlign: 'center'
+        textAlign: 'center',
+        fontFamily: 'raleway-medium',
+        fontWeight: "500",
+        fontSize: 16,
     },
     textLabelWrapper: {
         width: '100%',

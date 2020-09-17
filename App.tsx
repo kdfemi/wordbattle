@@ -34,7 +34,9 @@ const store = createStore(reducer, applyMiddleware(ReduxThunk))
 
 const loadFont = () => {
   return Font.loadAsync({
-    'egorycastle': require('./assets/fonts/EgorycastlePersonal.ttf')
+    'egorycastle': require('./assets/fonts/EgorycastlePersonal.ttf'),
+    'raleway-bold': require('./assets/fonts/Raleway-Medium.ttf'),
+    'raleway-medium': require('./assets/fonts/Raleway-Bold.ttf'),
   });
 };
 
@@ -47,7 +49,6 @@ export default function App() {
   useEffect(() => {
     socket.connect()
     socket.on('connect', () => {
-      console.log('connected to server', socket.id)
       setIsConnectedToServer(true);
     });
 
@@ -64,7 +65,6 @@ export default function App() {
       console.log('Time out', data);
     });
     
-    console.log('Started')
     return () => {
       socket.removeListener('connect');
       socket.removeListener('disconnect');

@@ -195,7 +195,10 @@ const styles = StyleSheet.create({
         marginVertical: 10,
         borderRadius: 10,
         textAlign: 'center',
-        width: '80%'
+        width: '80%',
+        fontFamily: 'raleway-medium',
+        fontWeight: "500",
+        fontSize: 16,
     },
     textLabelWrapper: {
         width: '100%',

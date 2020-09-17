@@ -94,8 +94,7 @@ const GameScreen: React.FC<StackScreenProps<GameScreenProps>> = props => {
     const gameState = useSelector<RootState>(state => state.game) as GameState;
     const session = useSelector<RootState>(state => state.session) as SessionState;
     const user = useSelector<RootState>(state => state.user) as UserState;
-    
-    const timesCalled = useRef(0);
+
     const removeToast = () => {
         setIsError(false);
         setErrorMessage('');
@@ -137,7 +136,6 @@ const GameScreen: React.FC<StackScreenProps<GameScreenProps>> = props => {
                 }]);
             } else {
                 setErrorMessage(data.message);
-                console.log('Got to this error')
                 slideUp();
                 setTimeOutId.current = setTimeout(() => {
                     removeToast();
@@ -241,9 +239,7 @@ const GameScreen: React.FC<StackScreenProps<GameScreenProps>> = props => {
         canSet.current = allWords.canSetSpot;
         setCurrentWord(allWords.fillingLetter);
         setSuggestedLetters(allWords.scrambledWord);
-        setWord(allWords.word)
-        console.log( " Word==> ",allWords.word, ' ' ,timesCalled.current+ ' '  + Platform.OS)
-        timesCalled.current = +1;
+        setWord(allWords.word);
     }, [gameState]);
 
     useEffect(() => {
@@ -355,7 +351,7 @@ const GameScreen: React.FC<StackScreenProps<GameScreenProps>> = props => {
                     </Card>
                     <Text style={styles.timeIndicator}> : </Text>
                     <Card style={{borderRadius: 5}}>
-                        <Input style={{...styles.inputs, ...styles.time}} editable={false} value={seconds}/>
+                        <Input style={{...styles.inputs, ...styles.time}} editable={false} value={seconds} />
                     </Card>
                 </View>
 
@@ -370,7 +366,7 @@ const GameScreen: React.FC<StackScreenProps<GameScreenProps>> = props => {
                                 }
                             }} key={index} >
                                 <Card style={{...styles.timeCard, flex: 1, maxWidth: 55, ...(canSet.current[index]?styles.canFillIndicator : null)}} onStartShouldSetResponderCapture= {(event) => true} >
-                                    <Input autoCapitalize="characters" maxLength={1} editable={false} value={word} style={{...styles.inputs,  textTransform:'capitalize'}}/>
+                                    <Input autoCapitalize="characters" maxLength={1} editable={false} value={word} style={{...styles.inputs,  textTransform:'uppercase'}}/>
                                 </Card>
                             </TouchableWithoutFeedback>
                         )
@@ -436,6 +432,7 @@ const styles = StyleSheet.create({
         borderRadius: 5, 
         color: Colors.secondary,
         fontWeight: 'bold',
+        fontFamily: 'raleway-medium',
     },
 
     canFillIndicator: 
@@ -489,7 +486,9 @@ const styles = StyleSheet.create({
         flexDirection: 'row',
         margin: 30,
         width: '100%',
-        justifyContent: 'center'
+        justifyContent: 'center',
+        fontFamily: 'raleway-medium',
+        textTransform: 'uppercase'
     },
 
     buttonContainer: 
